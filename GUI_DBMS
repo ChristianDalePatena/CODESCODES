@@ -1,0 +1,257 @@
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QLabel, QPushButton, QLineEdit, QMessageBox, QComboBox
+)
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtCore import Qt
+from Functions import login_user, set_current_user, get_user_role, signup_user
+import sys
+import uuid
+
+# GLOBAL THEME PARA MADALING MA MODIFY
+THEME_COLOR = "#26547C"
+ACCENT_COLOR = "#FFFFF0"
+BUTTON_HOVER_COLOR = "#FFD166"
+FONT_COLOR = "black"
+FONT_SIZE = "14px"
+BUTTON_BORDER_RADIUS = "10px"
+BUTTON_PADDING = "8px 16px"
+BORDER_WIDTH = "2px"
+BORDER_COLOR = "#06D6A0"
+
+BUTTON_STYLE = f"""
+    QPushButton {{
+        background-color: {ACCENT_COLOR};
+        color: {FONT_COLOR};
+        font-size: {FONT_SIZE};
+        padding: {BUTTON_PADDING};
+        border-radius: {BUTTON_BORDER_RADIUS};
+        border: {BORDER_WIDTH} solid {BORDER_COLOR};
+    }}
+    QPushButton:hover {{
+        background-color: {BUTTON_HOVER_COLOR};
+    }}
+"""
+
+INPUT_STYLE = f"""
+    QLineEdit {{
+        font-size: {FONT_SIZE};
+        padding: 5px;
+        border-radius: {BUTTON_BORDER_RADIUS};
+        border: {BORDER_WIDTH} solid {BORDER_COLOR};
+    }}
+"""
+
+
+class AdminDashboard(QWidget):
+    def __init__(self, username):
+        super().__init__()
+        self.setWindowTitle("Admin Dashboard")
+        self.setFixedSize(900, 800)
+        self.setWindowIcon(QIcon("C:\\Users\\Chris\\Downloads\\cubaoo.png"))
+        self.setStyleSheet(f"background-color: {THEME_COLOR};")
+        title = QLabel(f"Welcome Admin, {username}!", self)
+        title.setStyleSheet(f"color: {ACCENT_COLOR}; font-size: 24px; font-weight: bold;")
+        title.adjustSize()
+        title.move(50, 50)
+
+
+class SellerDashboard(QWidget):
+    def __init__(self, username):
+        super().__init__()
+        self.setWindowTitle("Seller Dashboard")
+        self.setFixedSize(900, 800)
+        self.setWindowIcon(QIcon("C:\\Users\\Chris\\Downloads\\cubaoo.png"))
+        self.setStyleSheet(f"background-color: {THEME_COLOR};")
+        title = QLabel(f"Welcome Seller, {username}!", self)
+        title.setStyleSheet(f"color: {ACCENT_COLOR}; font-size: 24px; font-weight: bold;")
+        title.adjustSize()
+        title.move(50, 50)
+
+
+class ConsumerDashboard(QWidget):
+    def __init__(self, username):
+        super().__init__()
+        self.setWindowTitle("Consumer Dashboard")
+        self.setFixedSize(900, 800)
+        self.setWindowIcon(QIcon("C:\\Users\\Chris\\Downloads\\cubaoo.png"))
+        self.setStyleSheet(f"background-color: {THEME_COLOR};")
+        title = QLabel(f"Welcome Consumer, {username}!", self)
+        title.setStyleSheet(f"color: {ACCENT_COLOR}; font-size: 24px; font-weight: bold;")
+        title.adjustSize()
+        title.move(50, 50)
+
+
+class MainWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Farmers Cubao")
+        self.setFixedSize(800, 550)
+        self.setStyleSheet(f"background-color: {THEME_COLOR};")
+        self.setWindowIcon(QIcon("C:\\Users\\Chris\\Downloads\\cubaoo.png"))
+        self.signup_window = None
+        self.init_ui()
+
+    def init_ui(self):
+        self.image_label = QLabel(self)
+        pixmap = QPixmap("C:\\Users\\Chris\\Downloads\\cubaoo.png").scaled(300, 300, Qt.AspectRatioMode.KeepAspectRatio)
+        self.image_label.setPixmap(pixmap)
+        self.image_label.adjustSize()
+        self.image_label.move(250, 30)
+
+        self.user_id_input = QLineEdit(self)
+        self.user_id_input.setPlaceholderText("Please enter your username")
+        self.user_id_input.setFixedSize(200, 30)
+        self.user_id_input.setStyleSheet(INPUT_STYLE)
+        self.user_id_input.move(300, 250)
+
+        self.password_input = QLineEdit(self)
+        self.password_input.setPlaceholderText("Please enter your password")
+        self.password_input.setFixedSize(200, 30)
+        self.password_input.setStyleSheet(INPUT_STYLE)
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_input.move(300, 300)
+
+        self.login_button = QPushButton("Login", self)
+        self.signup_button = QPushButton("Sign Up", self)
+
+        button_style_main = f"""
+            QPushButton {{
+                background-color: {ACCENT_COLOR};
+                color: {THEME_COLOR};
+                font-size: 16px;
+                padding: 10px 20px;
+                border-radius: 15px;
+                font-weight: bold;
+                border: {BORDER_WIDTH} solid {BORDER_COLOR};
+            }}
+            QPushButton:hover {{
+                background-color: #cccccc;
+            }}
+        """
+        self.login_button.setStyleSheet(button_style_main)
+        self.signup_button.setStyleSheet(button_style_main)
+
+        self.login_button.setFixedWidth(105)
+        self.signup_button.setFixedWidth(105)
+
+        self.login_button.move(290, 350)
+        self.signup_button.move(410, 350)
+
+        self.login_button.clicked.connect(self.login_function)
+        self.signup_button.clicked.connect(self.signup_function)
+
+    def signup_function(self):
+        if self.signup_window is None:
+            self.signup_window = SignUpWindow(self)
+        self.signup_window.show()
+        self.hide()
+
+    def login_function(self):
+        username = self.user_id_input.text()  # Now actually getting the username
+        password = self.password_input.text()
+
+        if not username or not password:
+            QMessageBox.warning(self, "Error!", "Please enter both username and password.")
+            return
+
+        user = login_user(username=username, password=password)  # Login using username
+        if user:
+            user_id_from_db = user[0]
+            username = user[1]
+            role_row = get_user_role(user_id_from_db)
+            if role_row:
+                role = role_row[0]
+                set_current_user(user_id_from_db, username, role)
+                QMessageBox.information(self, "Success!", f"Welcome, {username} ({role})!")
+                self.hide()
+
+                # PANG OPEN NG DASHBOARDS DEPENDE KUNG ANONG TYPE OF USER SIYA
+                if role.lower() == "admin":
+                    self.dashboard_window = AdminDashboard(username)
+                elif role.lower() == "seller":
+                    self.dashboard_window = SellerDashboard(username)
+                else:
+                    self.dashboard_window = ConsumerDashboard(username)
+
+                self.dashboard_window.show()
+            else:
+                QMessageBox.critical(self, "Error", "User has no assigned role!")
+        else:
+            QMessageBox.critical(self, "Login Failed!", "Invalid username or password.")
+
+
+class SignUpWindow(QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.setWindowTitle("Sign Up")
+        self.setFixedSize(450, 320)
+        self.setWindowIcon(QIcon("C:\\Users\\Chris\\Downloads\\cubaoo.png"))
+        self.setStyleSheet(f"background-color: {THEME_COLOR};")
+        self.init_ui()
+
+    def init_ui(self):
+        self.title_label = QLabel("Create an Account", self)
+        self.title_label.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {ACCENT_COLOR};")
+        self.title_label.adjustSize()
+        self.title_label.move((self.width() - self.title_label.width()) // 2, 20)
+
+        self.username_input = QLineEdit(self)
+        self.username_input.setPlaceholderText("Create a username")
+        self.username_input.setFixedSize(250, 30)
+        self.username_input.setStyleSheet(INPUT_STYLE)
+        self.username_input.move(100, 75)
+
+        self.password_input = QLineEdit(self)
+        self.password_input.setPlaceholderText("Create a password")
+        self.password_input.setFixedSize(250, 30)
+        self.password_input.setStyleSheet(INPUT_STYLE)
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_input.move(100, 115)
+
+        self.role_label = QLabel("Sign-up as?", self)
+        self.role_label.setStyleSheet(f"color: {ACCENT_COLOR}; font-size: {FONT_SIZE};")
+        self.role_label.adjustSize()
+        self.role_label.move(100, 155)
+
+        self.role_combo = QComboBox(self)
+        self.role_combo.addItems(["Consumer", "Seller", "Admin"])
+        self.role_combo.setStyleSheet(INPUT_STYLE)
+        self.role_combo.setFixedSize(250, 30)
+        self.role_combo.move(100, 175)
+
+        self.signup_button = QPushButton("Submit", self)
+        self.signup_button.setStyleSheet(BUTTON_STYLE)
+        self.signup_button.adjustSize()
+        self.signup_button.move((self.width() - self.signup_button.width()) // 2, 250)
+        self.signup_button.clicked.connect(self.submit_signup)
+
+        self.back_button = QPushButton("🡸", self)
+        self.back_button.setStyleSheet(BUTTON_STYLE)
+        self.back_button.setFixedSize(50, 30)
+        self.back_button.move((self.width() - self.back_button.width()) // 50, 10)
+        self.back_button.clicked.connect(self.back_function)
+
+    def back_function(self):
+        self.close()
+        self.main_window.show()
+
+    def submit_signup(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
+        role = self.role_combo.currentText()
+
+        if username == "" or password == "" or role == "":
+            QMessageBox.warning(self, "I no no :(", "All fields must be filled to create an account!")
+            return
+
+        user_id = "U" + uuid.uuid4().hex[:6].upper()  # PANG GENERATE NG UNIQUE ID PARA SA MGA USERS
+
+        success = signup_user(user_id, username, password, role)
+        if success:
+            QMessageBox.information(self, "wow! :)", "Account created successfully!")
+        else:
+            QMessageBox.warning(self, "Error", "Username already exists or account creation failed.")
+
+        self.close()
+        self.main_window.show()
