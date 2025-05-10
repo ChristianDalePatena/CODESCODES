@@ -1,0 +1,211 @@
+import pyodbc
+import bcrypt
+import uuid
+
+
+DRIVER_NAME = "SQL Server"
+SERVER_NAME = "Christian"
+DATABASE_NAME = "FarmersCubao"
+
+connection_string = f"""
+    DRIVER={DRIVER_NAME};SERVER={SERVER_NAME};DATABASE={DATABASE_NAME};
+    Trusted_Connection=yes;
+"""
+
+def get_connection():
+    return pyodbc.connect(connection_string)
+
+# ----------------------------------------------------------User management-----------------------------------------------------------------------------------------------------
+
+def create_users(user_id, username, password):
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""INSERT INTO Users (Users_ID, Username, Password) VALUES (?, ?, ?)""", (user_id, username, hashed_password.decode('utf-8')))
+        conn.commit()
+
+def get_user_by_username(username):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Users WHERE Username = ?", (username,))
+        return cursor.fetchone()
+
+def get_user_by_id(user_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Users WHERE Users_ID = ?", (user_id,))
+        return cursor.fetchone()
+
+def login_user(username=None, user_id=None, password=None):
+    if not password:
+        return None
+
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            if username:
+                cursor.execute("SELECT Users_ID, Username, Password FROM Users WHERE Username = ?", (username,))
+            elif user_id:
+                cursor.execute("SELECT Users_ID, Username, Password FROM Users WHERE Users_ID = ?", (user_id,))
+            else:
+                return None
+
+            user = cursor.fetchone()
+            if user and bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
+                user_id = user[0]
+                # Pang Identify ng role
+                cursor.execute("""
+                    SELECT r.Role_Name FROM Roles r JOIN User_Roles ur ON r.Role_ID = ur.Role_ID WHERE ur.User_ID = ?""", (user_id,))
+                role_result = cursor.fetchone()
+                role = role_result[0] if role_result else None
+                return (user[0], user[1], role)
+            else:
+                return None
+    except Exception as e:
+        print("Login error:", e)
+        return None
+
+
+def assign_role_to_user(user_id, role_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO User_Roles (User_ID, Role_ID) VALUES (?, ?)", (user_id, role_id))
+        conn.commit()
+
+def get_user_role(user_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT r.Role_Name FROM Roles r  JOIN User_Roles ur ON r.Role_ID = ur.Role_ID  WHERE ur.User_ID = ?""", (user_id,))
+        return cursor.fetchone()
+
+def signup_user(user_id, username, password, role_name):
+    user = get_user_by_username(username)
+    user_by_id = get_user_by_id(user_id)
+
+    if user or user_by_id:
+        return False
+
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Hash password
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+            # Insert new user
+            cursor.execute("""
+                INSERT INTO Users (Users_ID, Username, Password) VALUES (?, ?, ?)""",
+                (user_id, username, hashed_password.decode('utf-8')))
+
+            # Get or create role
+            cursor.execute("SELECT Role_ID FROM Roles WHERE Role_Name = ?", (role_name,))
+            role_result = cursor.fetchone()
+
+            if not role_result:
+                new_role_id = "R" + uuid.uuid4().hex[:6].upper()
+                cursor.execute("INSERT INTO Roles (Role_ID, Role_Name) VALUES (?, ?)", (new_role_id, role_name))
+                role_id = new_role_id
+            else:
+                role_id = role_result[0]
+
+            # Assign role to user
+            cursor.execute("INSERT INTO User_Roles (User_ID, Role_ID) VALUES (?, ?)", (user_id, role_id))
+
+            # Create role-specific record
+            if role_name.lower() == "consumer":
+                consumer_id = "C" + uuid.uuid4().hex[:6].upper()
+                cursor.execute("INSERT INTO Consumers (Consumer_ID, Users_ID, Customer_Name) VALUES (?, ?, ?)",
+                               (consumer_id, user_id, username))
+
+            elif role_name.lower() == "seller":
+                seller_id = "S" + uuid.uuid4().hex[:6].upper()
+                cursor.execute("INSERT INTO Sellers (Seller_ID, Users_ID, Seller_Name) VALUES (?, ?, ?)",
+                               (seller_id, user_id, username))
+
+            conn.commit()
+            return True
+
+    except Exception as e:
+        print("Signup error:", e)
+        if conn:
+            conn.rollback()
+        return False
+
+# ----------------------------------------------------------session manager-----------------------------------------------------------------------------------
+
+current_user = {"user_id": None, "username": None, "role": None}
+
+def set_current_user(user_id, username, role):
+    current_user["user_id"] = user_id
+    current_user["username"] = username
+    current_user["role"] = role
+
+def get_current_user():
+    return current_user
+
+# ----------------------------------------------------------seller manager-----------------------------------------------------------------------------------
+
+def create_seller(seller_id, user_id, seller_name):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO Sellers (Seller_ID, Users_ID, Seller_Name) VALUES (?, ?, ?)",
+                       (seller_id, user_id, seller_name))
+        conn.commit()
+
+def get_seller_by_user_id(user_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Sellers WHERE Users_ID = ?", (user_id,))
+        return cursor.fetchone()
+
+# ----------------------------------------------------------consumer manager---------------------------------------------------------------------------------
+
+def create_consumer(consumer_id, user_id, customer_name):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO Consumers (Consumer_ID, Users_ID, Customer_Name) VALUES (?, ?, ?)",
+                       (consumer_id, user_id, customer_name))
+        conn.commit()
+
+def get_consumer_by_user_id(user_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Consumers WHERE Users_ID = ?", (user_id,))
+        return cursor.fetchone()
+
+# ----------------------------------------------------------product manager----------------------------------------------------------------------------------
+
+def create_product(product_id, seller_id, name, desc, price):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO Products (Product_ID, Seller_ID, Product_Name, Description, Price)
+            VALUES (?, ?, ?, ?, ?)""",
+            (product_id, seller_id, name, desc, price))
+        conn.commit()
+
+def update_product(product_id, name, desc, price):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE Products SET Product_Name = ?, Description = ?, Price = ? WHERE Product_ID = ?""", (name, desc, price, product_id))
+        conn.commit()
+
+def delete_product(product_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Products WHERE Product_ID = ?", (product_id,))
+        conn.commit()
+
+def get_products_by_seller(seller_id):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Products WHERE Seller_ID = ?", (seller_id,))
+        return cursor.fetchall()
+
+def get_all_products():
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Products")
+        return cursor.fetchall()
