@@ -120,40 +120,47 @@ class MainWindow(ctk.CTk):
 
 
         def update_cart_item():
-            selected_item = cart_list.selection()
-            if selected_item:
-                item_index = cart_list.index(selected_item[0])
-                name = item_name_entry.get()
-                description = description_entry.get()
-                quantity_str = quantity_entry.get()
+            item_name_entry.configure(state=NORMAL)
+            description_entry.configure(state=NORMAL)
 
-                if name and description and quantity_str:
-                    try:
-                        quantity = int(quantity_str)
-                        if quantity <= 0:
-                            messagebox.showerror("Input Error", "Quantity must be greater than zero!")
-                            return
-                        price = quantity * 10
-                        cart_items[item_index] = {"name": name, "description": description, "price": price,
-                                                  "quantity": quantity}
-                        update_cart_list()
-                        clear_entries()
-                    except ValueError:
-                        messagebox.showerror("Input Error", "Invalid quantity. Please enter a valid number!")
-                else:
-                    messagebox.showerror("Input Error", "All fields must be filled!")
+            Product_Name = item_name_entry.get()
+            Desc = description_entry.get()
+            Quan = quantity_entry.get()
+            Price = price_entry.get()
+
+            update_check = update(Product_Name,Desc,Quan,Price)
+
+            if update_check is True:
+                messagebox.showinfo("Success", "Updated Market.")
+                item_name_entry.delete(0, END)
+                description_entry.delete(0, END)
+                quantity_entry.delete(0, END)
+                price_entry.delete(0, END)
+
+
             else:
-                messagebox.showwarning("Select Item", "Please select an item in the cart to update.")
+                messagebox.showerror("Error", "Failed Update Market.")
+
+
+
 
         def remove_from_cart():
-            selected_item = cart_list.selection()
-            if selected_item:
-                item_index = cart_list.index(selected_item[0])
-                del cart_items[item_index]
-                update_cart_list()
-                clear_entries()
-            else:
-                messagebox.showwarning("Select Item", "Please select an item to remove from the cart.")
+            item_name_entry.configure(state=NORMAL)
+            description_entry.configure(state=NORMAL)
+
+            Product_Name = item_name_entry.get()
+            Desc = description_entry.get()
+            Quan = quantity_entry.get()
+            Price = price_entry.get()
+
+            Remove_check = Remove(Product_Name, Desc, Quan, Price)
+
+            if Remove_check is True:
+                messagebox.showinfo("Success", "Remove from Market")
+                item_name_entry.delete(0, END)
+                description_entry.delete(0, END)
+                quantity_entry.delete(0, END)
+                price_entry.delete(0, END)
 
         def check_add_to_cart_result(item_name_entry,description_entry,quantity_entry,price_entry):
             result = add_to_cart(userID, userNAME, item_name_entry, description_entry, quantity_entry,
@@ -320,7 +327,7 @@ class MainWindow(ctk.CTk):
 
         sample_textbox = ctk.CTkTextbox(product_frame, width=360, height=270, corner_radius=12)
         sample_textbox.place(x=20, y=40)
-        sample_textbox.insert("0.0", "Apple\tFresh red apples\t₱25\nBanana\tSweet ripe bananas\t₱15")
+       
 
         self.mainloop()
 
