@@ -100,6 +100,7 @@ def Login(user, password):
         print(f"Failed during login or role-based insertion: {ex}")
         return None
 
+#================================================================Seller Functions========================================
 
 def insert_product(user_id, product_name, description, price, quantity):
     cursor = connect.cursor()
@@ -179,8 +180,37 @@ def add_to_cart(userID,userNAME,item_name_entry,description_entry,quantity_entry
         print("Error inserting product:", e)
 
 
+def update(Product_Name,Desc,Quan,Price):
+
+    Quan = int(Quan)
+    Price = int(Price)
+    try:
+        cursor = connect.cursor()
+
+        query_stmt = "UPDATE Products SET Price = ?, Quantity = ? WHERE Product_Name = ? and Description = ?"
+        cursor.execute(query_stmt,((Price,Quan,Product_Name,Desc)))
+        connect.commit()
+
+        if cursor.rowcount > 0:
+            return True
+
+    except Exception as e:
+        print("Error inserting product:", e)
 
 
+def Remove(Product_Name,Desc,Quan,Price):
+    try:
+        cursor = connect.cursor()
+
+        query_stmt = "DELETE FROM Products WHERE Product_Name = ? and Description = ?"
+        cursor.execute(query_stmt,(Product_Name,Desc))
+        connect.commit()
+
+        if cursor.rowcount > 0:
+            return True
+
+    except Exception as e:
+        print("Error inserting product:", e)
 
 '''
 def add_to_cart():
@@ -254,3 +284,9 @@ def get_next_product_id():
 
 def refresh_market():
     pass
+
+#========================================================Consumer Functions==========================================
+def add_to_basket(Product_ID_FK,Product_Name, Price, Quantity):
+    try:
+        cursor = connect.cursor()
+
